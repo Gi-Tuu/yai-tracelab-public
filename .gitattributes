@@ -1,0 +1,15 @@
+# 统一换行，避免 Windows 上 CRLF 污染
+* text=auto eol=lf
+
+*.py    text eol=lf
+*.md    text eol=lf
+*.toml  text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+
+# Windows 批处理/双击脚本按 CRLF 检出（cmd.exe 更稳）
+*.cmd   text eol=crlf
+
+# 赛事原始数据必须逐字节保持——任何换行转换都会让 MANIFEST.sha256
+# 与报告里的数据哈希失效，从而破坏"结果可复现"这一核心要求。
+data/official/** -text

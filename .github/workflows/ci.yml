@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: utf-8
+
+jobs:
+  lint-and-test:
+    name: lint + test (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: 安装
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        run: python -m ruff check .
+
+      - name: Mypy
+        run: python -m mypy tracelab
+
+      # 公共单元集合：目录级分层，公开镜像里没有 data/official，所以只跑 tests/unit。
+      # 覆盖率门槛**显式**写在命令里（--cov / --cov-branch / --cov-fail-under），
+      # 不依赖 pyproject 的隐式 fail_under——避免"配了门槛却没跑 --cov"的假门禁。
+      #
+      # 为什么是 55% 而不是 80%（真实数字，不要改成"看起来达标"）：
+      # - 公开范围只能跑 tests/unit，同口径实测 **72.4%**（branch）；
+      # - 私有全量（unit + integration，348 项）实测 **91.1%**，80% 门槛在私有 CI 执行；
+      # - 80% 在"只有 tests/unit"的范围里不可达——达不到就写清原因，而不是把数字调成 80 再假装跑过。
+      # - 55% 的作用是挡住"公共单测整体失效"的回归；要提高它只有一个正确做法：补 tests/unit。
+      - name: Pytest 公共单元 + 覆盖率门槛 55%（branch 口径）
+        run: |
+          python -m pytest tests/unit -q -rs \
+            --cov=tracelab --cov-branch --cov-fail-under=55 --cov-report=term-missing \
+            --cov-report=json:"$RUNNER_TEMP/coverage.json" \
+            --junitxml="$RUNNER_TEMP/junit-unit.xml"
+
+      # 门禁自检：覆盖率真的跑了（读本次运行的 coverage.json，而不是信 `.coverage` 在不在）/
+      # 用例数没有缩水 / 每条 skip 都**按 nodeid 白名单**登记（不认原因文本）。
+      - name: 门禁自检（覆盖率实测值 / 用例数下限 / skip nodeid 白名单）
+        run: |
+          python - "$RUNNER_TEMP/junit-unit.xml" "$RUNNER_TEMP/coverage.json" <<'PY'
+          import json
+          import pathlib
+          import sys
+          import xml.etree.ElementTree as ET
+
+          # 公开（Linux）范围允许的跳过：只能是"Windows 路径语义"与"宿主无 mklink"两类，
+          # 且必须精确到 nodeid；新增跳过必须先在这里登记。
+          SKIP_WHITELIST = {
+              "tests.unit.test_bundle_security::test_windows_case_variant_of_root_rejected":
+                  ("windows_path_semantics", 1),
+              "tests.unit.test_bundle_security::test_windows_junction_out_dir_is_rejected":
+                  ("windows_path_semantics", 1),
+              "tests.unit.test_bundle_security::test_extended_prefix_project_root_is_rejected":
+                  ("windows_path_semantics", 1),
+              "tests.unit.test_bundle_security::test_extended_prefix_home_is_rejected":
+                  ("windows_path_semantics", 1),
+              "tests.unit.test_bundle_security::test_short_name_segment_is_rejected":
+                  ("windows_path_semantics", 1),
+              "tests.unit.test_mirror_guards::test_junction_inside_source_tree_is_pruned":
+                  ("windows_path_semantics", 1),
+              "tests.unit.test_bundle_security::test_link_swap_after_marker_check_is_refused":
+                  ("host_no_junction", 1),
+              # 快照哈希匹配测试依赖私有 regression/ 快照；公开镜像不含，按类别登记 1 次
+              "tests.unit.test_round12_audit5_fixes::test_packed_runs_requires_matching_dataset_hash":
+                  ("private_regression_snapshot", 1),
+          }
+          SKIP_CAPS = {"windows_path_semantics": 6, "host_no_junction": 1,
+                       "private_regression_snapshot": 1}
+
+          def nodeid(case):
+              return f"{case.get('classname', '')}::{case.get('name', '')}"
+
+          cases = list(ET.parse(sys.argv[1]).getroot().iter("testcase"))
+          skips = [(nodeid(case), (case.find("skipped").get("message") or ""))
+                   for case in cases if case.find("skipped") is not None]
+          unknown = [item for item in skips if item[0] not in SKIP_WHITELIST]
+          if unknown:
+              sys.exit(f"出现未登记的跳过（nodeid 不在白名单）：{unknown}")
+          counts = {}
+          for case_id, _ in skips:
+              category, _allowed = SKIP_WHITELIST[case_id]
+              counts[category] = counts.get(category, 0) + 1
+          for category, cap in SKIP_CAPS.items():
+              if counts.get(category, 0) > cap:
+                  sys.exit(f"类别 {category} 跳过 {counts[category]} 项，超过上限 {cap}")
+          if len(cases) < 310:
+              sys.exit(f"用例数 {len(cases)} 低于下限 310（测试被删或整批跳过）")
+
+          coverage_path = pathlib.Path(sys.argv[2])
+          if not coverage_path.is_file():
+              sys.exit("本次运行没有生成 coverage.json：--cov 没有真的执行")
+          coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+          percent = float(coverage["totals"]["percent_covered"])
+          modules = [name for name in coverage["files"]
+                     if name.replace("\\", "/").startswith("tracelab/")]
+          if not modules:
+              sys.exit(f"覆盖率报告里没有 tracelab 模块：{list(coverage['files'])[:5]}")
+          if percent < 55:
+              sys.exit(f"覆盖率 {percent:.2f}% < 55%：公开范围门槛被绕过")
+          print(f"公共单测 {len(cases)} 项，跳过 {len(skips)} 项（nodeid 白名单内：{counts}）")
+          print(f"覆盖率实测 {percent:.2f}%（branch 口径，{len(modules)} 个 tracelab 模块，门槛 55%）")
+          PY
+
+      # 文件哈希自检：任何人可核对仓库文件与 SHA256SUMS 一致。
+      - name: 文件哈希自检（SHA256SUMS）
+        run: sha256sum -c SHA256SUMS --quiet
+
+      # 安全检查（发布后仍生效）：仓库里不应出现敏感路径或凭证模式。生成器构建时查过一遍，
+      # 这里查的是"生成之后有没有人再往公开仓里塞东西"——包括后续 PR / 手工提交。
+      - name: 安全检查（敏感路径与凭证模式）
+        run: |
+          python - <<'PY'
+          import fnmatch
+          import pathlib
+          import sys
+
+          EXCLUDED_PREFIXES = ('data/official', 'docs/g0', 'docs/g5', 'regression', 'tests/integration', 'out', 'dist')
+          EXCLUDED_GLOBS = ('data/official', 'docs/g0', 'docs/g5', 'docs/casebook*.md', 'docs/ablation-report.md', 'regression', 'tests/integration', 'out', 'dist', 'scripts/build_public_mirror.py', 'tests/unit/test_mirror_guards.py', 'tests/unit/test_docs_consistency.py', 'tests/unit/test_version_consistency.py', 'tests/unit/test_audit_fixes.py', '*.log', '**/*.log', '.env', '**/.env', '.env.*', '**/.env.*', '*.pem', '**/*.pem', '*.key', '**/*.key', '*.p12', '**/*.p12', '*.pfx', '**/*.pfx', '*.pdf', '**/*.pdf', '*.zip', '**/*.zip', '*.docx', '**/*.docx', '*.xlsx', '**/*.xlsx', '*.pptx', '**/*.pptx', '__pycache__', '**/__pycache__', '*.pyc', '**/*.pyc', '*.pyo', '**/*.pyo', '*password*', '**/*password*', '*pwd*', '**/*pwd*', '*credential*', '*secret*', '*token*', '*apikey*', '*api_key*', '**/*credential*', '**/*secret*', '**/*token*', '**/*apikey*', '**/*api_key*', '.pytest_cache', '**/.pytest_cache', '.mypy_cache', '**/.mypy_cache', '.ruff_cache', '**/.ruff_cache')
+          # 缓存不是泄漏风险，但它们会出现在排除模式里（__pycache__ / *.pyc）
+          CACHE_PARTS = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+
+          hits: list[str] = []
+          for path in pathlib.Path(".").rglob("*"):
+              parts = path.parts
+              if not path.is_file() or ".git" in parts or any(part in CACHE_PARTS for part in parts):
+                  continue
+              rel = path.relative_to(".").as_posix()
+              if any(rel == prefix or rel.startswith(prefix + "/") for prefix in EXCLUDED_PREFIXES):
+                  hits.append(rel)
+              elif any(fnmatch.fnmatch(rel.casefold(), pattern.casefold()) for pattern in EXCLUDED_GLOBS):
+                  hits.append(rel)
+          if hits:
+              sys.exit(f"公开仓出现排除项，必须删除：{sorted(hits)[:10]}")
+          print("泄漏复核：排除项零命中（资料包 / 逐 Case 明细 / 回归快照 / 日志 / 凭证 / 赛事文档形态）")
+          PY
+
+      - name: 异构格式演示可运行
+        run: python -m tracelab evaluate --adapter generic --cases data/demo/generic-traces.jsonl --out out/generic
+
+      - name: 自造示例数据可运行（official adapter 全链路）
+        run: |
+          python -m tracelab evaluate --cases data/sample/sample-traces.jsonl --out out/sample
+          python -c "import json,pathlib; d=json.loads(pathlib.Path('out/sample/results.json').read_text(encoding='utf-8')); assert len(d['cases'])==4; print('sample ok:', len(d['cases']), 'cases')"
