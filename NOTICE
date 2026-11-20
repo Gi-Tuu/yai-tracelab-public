@@ -1,0 +1,23 @@
+YAI TraceLab
+Copyright (c) 2026 YAI TraceLab Team
+Licensed under the MIT License (see LICENSE).
+
+设计参考（未复制代码）
+---------------------
+本项目在系统设计层面参考了同团队项目 YAI Scout 的工程实践证明：
+  yai-scout — https://github.com/Gi-Tuu/yai-scout — MIT License, (c) Gi-Tuu
+参考范围：
+  - 版本化身份的抽象（身份限定字段 vs 可变值），未使用其 claim_key_v2 实现；
+  - 数据库完整性与迁移纪律（备份优先、一致性巡检、非破坏性迁移）；
+  - 分页/读取不设静默截断，并显式报告"总量 vs 已读"；
+  - 批量任务中单个 Case 失败隔离；
+  - CI 纪律（pytest / ruff / mypy / 覆盖率门槛）。
+
+本项目为独立实现，不 import yai_scout、不依赖其运行时、不复制其源代码。
+如后续引入任何第三方代码片段，应在此文件追加：
+  来源仓库、commit、文件路径、版权行与许可证全文。
+
+赛事数据
+-------
+data/official/ 下的内容版权归赛事主办方（云帐房网络科技有限公司），
+仅用于本次 AI 技术创新大赛的赛题三开发与评审，不随本项目 MIT 许可分发。

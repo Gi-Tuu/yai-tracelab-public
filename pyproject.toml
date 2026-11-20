@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yai-tracelab"
+# 审计 A1：版本号唯一来源是 tracelab/__init__.py（`python -m tracelab --version` 可验证）
+dynamic = ["version"]
+description = "YAI TraceLab —— 证据驱动、业务规则感知的 AI 开票 Agent 离线轨迹评测"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "YAI TraceLab Team" }]
+keywords = ["agent-evaluation", "trace-analysis", "invoice", "root-cause", "regression"]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "mypy>=1.10"]
+
+[project.scripts]
+tracelab = "tracelab.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "tracelab.__version__" }
+
+
+[tool.setuptools.packages.find]
+include = ["tracelab*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# 让 tests/builders.py 能从 tests/unit 与 tests/integration 里以 tests.* 导入
+pythonpath = ["."]
+markers = [
+  "requires_official: 历史标记（分层已改为 tests/unit 与 tests/integration 目录）",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+# data/ 是赛事原始数据，逐字节保持，任何格式化都会破坏可复现性（曾被 lint --fix 误改过一次）
+exclude = ["data", "out", ".tmp", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+
+[tool.coverage.run]
+source = ["tracelab"]
+# 分支覆盖：只看行覆盖率会放过"if 分支没走"的规则漏洞（三态判定/门禁分支全靠它）。
+branch = true
+
+[tool.coverage.report]
+# **这里的门槛是 tracelab 口径**：`--cov=tracelab` 的总门槛，不是"整个仓库"的口径。
+# （C-17 明确过这一点：不要把它理解成"所有 .py 加起来 80%"。）
+#
+# 私有主仓库口径：`pytest tests`（tests/unit + tests/integration）；实测值以 CI 日志为准
+# （branch，2026-11-03；G5.1 修复后 3.11/3.12 各实测一次）。
+# 80% 是留出余量的下限，不是"贴着实测值卡"。
+#
+# 关键规则/归因/迁移路径另有逐条单测覆盖，不用单一数字替代对关键路径的质量要求。
+#
+# 这个数字**只对私有全量有意义**：公开镜像里没有官方数据，只能跑 tests/unit，
+# 公开镜像口径（只跑 tests/unit）；实测值以 CI 日志为准，
+# 80% 在那里不可能达到。所以公开镜像的 CI（scripts/build_public_mirror.py 的 MIRROR_CI）
+# 用 `--cov-fail-under=55` **显式覆盖**本配置，并在 MIRROR.md 里写明理由——
+# 不偷偷降低，也不假装达到 80%。要求更高的公开覆盖率，唯一正确做法是补 tests/unit。
+# 私有 CI 则在命令里显式写 `--cov=tracelab --cov-branch --cov-fail-under=80`，
+# 不依赖这里被隐式拾取（G5 点名的"配了 fail_under 却没人跑 --cov"风险）。
+#
+# scripts/ 是**另一条独立口径**（C-17）：打包器、公开镜像生成器、CI 门禁脚本同样是交付物，
+# 不能因为"只测 tracelab"就整段落在门禁外。私有 CI 单独跑一次
+# `--cov=scripts --cov-branch --cov-fail-under=45`（独立数据文件，不用 --cov-append：
+# 实测 append 会把两份数据合并成 81.1%，scripts 自己的 56% 被 tracelab 掩盖）。
+# 2026-11-04 本地实测：scripts/ = 56%（branch，pytest tests），故下限取 45%。
+fail_under = 80
+show_missing = true
+
+

@@ -1,0 +1,2190 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YAI TraceLab · 复赛评测控制台</title>
+<style>
+  :root {
+    --ink: #13201e;
+    --ink-2: #30413e;
+    --muted: #6a7774;
+    --line: #dbe2df;
+    --paper: #f3f6f4;
+    --panel: #ffffff;
+    --rail: #101817;
+    --rail-2: #182321;
+    --accent: #0f766e;
+    --accent-bright: #14b8a6;
+    --accent-soft: #e3f1ee;
+    --leaf: #2e7d5b;
+    --leaf-soft: #e6f4ec;
+    --pass: #0d7a5f;
+    --pass-soft: #e4f4ee;
+    --fail: #a63a35;
+    --fail-soft: #fbecea;
+    --reject: #8a5a16;
+    --reject-soft: #fcf3e3;
+    --none: #5d6874;
+    --none-soft: #eef1f3;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(16, 24, 23, 0.05), 0 4px 14px rgba(16, 24, 23, 0.03);
+    --font-sans: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button { font-family: inherit; cursor: pointer; }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+
+  /* 左侧深色青墨导航栏 + 植物叶脉纹理 */
+  .rail {
+    position: relative;
+    background: var(--rail);
+    color: #e6eeec;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px;
+    border-right: 1px solid #1e2d2a;
+    overflow: hidden;
+  }
+
+  .rail-leaf-bg {
+    position: absolute;
+    right: -18px;
+    bottom: 54px;
+    width: 170px;
+    height: 220px;
+    pointer-events: none;
+    opacity: 0.14;
+    color: #5eead4;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 4px 6px 18px;
+    border-bottom: 1px solid #1f2e2b;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: linear-gradient(135deg, #0f766e, #1b9a84);
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 118, 110, 0.35);
+    flex-shrink: 0;
+  }
+
+  .brand-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: #f4f8f7;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: #88a09b;
+    margin-top: 1px;
+  }
+
+  .rail nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .rail nav button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #b7c7c3;
+    font-size: 13.5px;
+    font-weight: 500;
+    text-align: left;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+
+  .rail nav button:hover {
+    background: var(--rail-2);
+    color: #ffffff;
+  }
+
+  .rail nav button.active {
+    background: rgba(15, 118, 110, 0.24);
+    border-color: rgba(45, 212, 191, 0.28);
+    color: #ffffff;
+  }
+
+  .nav-left {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .rail nav button small {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #9eb3ae;
+  }
+
+  .rail nav button.active small {
+    background: rgba(45, 212, 191, 0.2);
+    color: #99f6e4;
+  }
+
+  .rail .spacer { flex: 1; }
+
+  .rail .note {
+    position: relative;
+    z-index: 1;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--rail-2);
+    border: 1px solid #22322f;
+    font-size: 12px;
+    color: #96aba6;
+    line-height: 1.55;
+  }
+
+  .rail .note-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #cde3de;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  /* 主区域 */
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 26px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .top-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .crumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .crumb-leaf {
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .top-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+
+  .mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--leaf-soft);
+    color: var(--leaf);
+    font-family: var(--font-sans);
+    font-size: 11.5px;
+    font-weight: 600;
+    border: 1px solid rgba(46, 125, 91, 0.18);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--pass);
+    display: inline-block;
+    box-shadow: 0 0 0 3px rgba(13, 122, 95, 0.15);
+  }
+
+  .wrap {
+    padding: 24px 26px 32px;
+    max-width: 1240px;
+    width: 100%;
+    margin: 0 auto;
+    flex: 1;
+  }
+
+  /* Hero 概览条 */
+  .hero-banner {
+    position: relative;
+    background: linear-gradient(125deg, #ffffff 0%, #eff7f4 65%, #e5f3ec 100%);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .hero-leaf-deco {
+    position: absolute;
+    right: 12px;
+    top: -10px;
+    width: 190px;
+    height: 150px;
+    color: var(--accent);
+    opacity: 0.11;
+    pointer-events: none;
+  }
+
+  .head-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+  }
+
+  .head-row h1 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .lede {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: 13.5px;
+    max-width: 680px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+  }
+
+  .badge.ok {
+    background: var(--pass-soft);
+    border-color: rgba(13, 122, 95, 0.25);
+    color: var(--pass);
+  }
+
+  /* KPI 指标行 */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .kpi, .activity {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 15px 16px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--accent);
+    opacity: 0.45;
+  }
+
+  .kpi .k, .activity .k {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .kpi .v, .activity .v {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    font-family: var(--font-mono);
+    line-height: 1.25;
+  }
+
+  .kpi .s {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 5px;
+  }
+
+  .activity .side {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 7px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 4px 0 12px;
+  }
+
+  .section-head h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .section-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* 数据集卡片网格 */
+  .datasets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .card {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.16s ease, transform 0.16s ease;
+  }
+
+  .card:hover {
+    border-color: #aac9c2;
+    transform: translateY(-1px);
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .card-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    letter-spacing: 0.4px;
+  }
+
+  .card-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+
+  .card-path {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  .card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    margin-top: auto;
+  }
+
+  .seg {
+    display: inline-flex;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 2px;
+    gap: 2px;
+  }
+
+  .seg label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-2);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .seg input {
+    display: none;
+  }
+
+  .seg label:has(input:checked) {
+    background: var(--panel);
+    color: var(--accent);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(16, 24, 23, 0.08);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 600;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  .btn:hover { background: #0c625b; }
+  .btn:active { transform: scale(0.98); }
+
+  .btn.ghost {
+    background: var(--panel);
+    color: var(--ink-2);
+    border-color: var(--line);
+  }
+
+  .btn.ghost:hover {
+    background: var(--paper);
+    border-color: #bcc8c4;
+  }
+
+  /* 门禁条 */
+  .gates {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .gate {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12.5px;
+  }
+
+  .gate .ok {
+    color: var(--pass);
+    font-weight: 600;
+    font-size: 11.5px;
+  }
+
+  .gate .wait {
+    color: var(--reject);
+    font-weight: 600;
+    font-size: 11.5px;
+  }
+
+  /* 运行与结果页 */
+  .runs-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .pill-btn {
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink-2);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .pill-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+
+  .runs-grid {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .jobs {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .jobs-head {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--ink-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fafcfb;
+  }
+
+  .jobs .empty {
+    padding: 28px 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .job {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    transition: background 0.12s ease;
+  }
+
+  .job:last-child { border-bottom: none; }
+  .job:hover { background: #f8fbfa; }
+
+  .job.selected {
+    background: var(--accent-soft);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  .job-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .job .idx {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .job .name {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 13.5px;
+  }
+
+  .job .sub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+
+  .job .mode {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(16, 24, 23, 0.06);
+    color: var(--ink-2);
+    font-size: 11px;
+  }
+
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .status::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .status.running, .status.starting { background: #e0f2fe; color: #0369a1; }
+  .status.done { background: var(--pass-soft); color: var(--pass); }
+  .status.failed { background: var(--fail-soft); color: var(--fail); }
+
+  /* 详情面板 */
+  .detail {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .detail-head {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbfa 100%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .detail-head h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .muted { color: var(--muted); font-size: 12px; }
+
+  .summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    background: var(--none-soft);
+    color: var(--none);
+  }
+
+  .chip.PASS { background: var(--pass-soft); color: var(--pass); }
+  .chip.FAIL { background: var(--fail-soft); color: var(--fail); }
+  .chip.REJECT { background: var(--reject-soft); color: var(--reject); }
+  .chip.NO_RESULT { background: var(--none-soft); color: var(--none); }
+
+  .detail-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--line);
+    background: #fafcfb;
+  }
+
+  .dtab {
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+  }
+
+  .dtab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .detail-body {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* Verdict 分布条 */
+  .ratio-bar {
+    height: 10px;
+    border-radius: 999px;
+    background: var(--paper);
+    overflow: hidden;
+    display: flex;
+    border: 1px solid var(--line);
+  }
+
+  .ratio-seg.PASS { background: var(--pass); }
+  .ratio-seg.FAIL { background: var(--fail); }
+  .ratio-seg.REJECT { background: var(--reject); }
+  .ratio-seg.NO_RESULT { background: #9aa5b1; }
+
+  /* Case 列表与因果时间轴 */
+  .case-filters {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .search-input {
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-size: 12.5px;
+    color: var(--ink);
+    background: var(--paper);
+    min-width: 210px;
+  }
+
+  .case-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  table.case-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+
+  .case-table th {
+    background: #f6f9f8;
+    color: var(--ink-2);
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+
+  .case-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+
+  .case-table tr:last-child td { border-bottom: none; }
+  .case-table tbody tr { cursor: pointer; transition: background 0.12s ease; }
+  .case-table tbody tr:hover { background: #f6faf9; }
+  .case-table tbody tr.active-case { background: var(--accent-soft); }
+
+  /* 首因因果链卡片 */
+  .trace-box {
+    border: 1px solid #cce0db;
+    background: linear-gradient(180deg, #f8fcfb 0%, #ffffff 100%);
+    border-radius: 9px;
+    padding: 14px 16px;
+  }
+
+  .trace-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    padding-left: 18px;
+  }
+
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: #cfe0dc;
+  }
+
+  .t-step {
+    position: relative;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    font-size: 12.5px;
+  }
+
+  .t-step::before {
+    content: "";
+    position: absolute;
+    left: -16px;
+    top: 13px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .t-step.root {
+    border-color: rgba(166, 58, 53, 0.35);
+    background: #fff9f8;
+  }
+
+  .t-step.root::before {
+    background: var(--fail);
+    box-shadow: 0 0 0 1px var(--fail);
+  }
+
+  .t-step.suppressed {
+    border-style: dashed;
+    background: #fafcfb;
+    color: var(--muted);
+  }
+
+  .t-step.suppressed::before {
+    background: #94a3b8;
+    box-shadow: 0 0 0 1px #94a3b8;
+  }
+
+  .t-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+  }
+
+  /* 对比卡片 */
+  .ab-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .ab-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: #fafcfb;
+  }
+
+  .ab-card .val {
+    font-family: var(--font-mono);
+    font-size: 19px;
+    font-weight: 700;
+    margin: 4px 0;
+  }
+
+  /* 原始日志终端 */
+  .log-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  pre.log {
+    margin: 0;
+    padding: 14px;
+    border-radius: 8px;
+    background: #0f1716;
+    color: #d6e4e1;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.55;
+    max-height: 380px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* 能力与验收集说明 */
+  .ev-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .ev-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ev-card-leaf {
+    position: absolute;
+    right: 10px;
+    bottom: 6px;
+    width: 68px;
+    height: 68px;
+    color: var(--accent);
+    opacity: 0.08;
+    pointer-events: none;
+  }
+
+  .ev-checks {
+    margin: 10px 0 0;
+    padding-left: 16px;
+    color: var(--ink-2);
+    font-size: 12.5px;
+  }
+
+  .ev-checks li { margin-bottom: 4px; }
+
+  /* Toast 提示 */
+  .toast {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 60;
+    background: var(--rail);
+    color: #f0f7f5;
+    border: 1px solid #26403b;
+    border-radius: 9px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toast.show { display: flex; }
+
+  .foot {
+    padding: 12px 26px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #fafcfb;
+  }
+
+  .skeleton {
+    height: 16px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #edf2f0, #e1eae7, #edf2f0);
+  }
+
+  @media (max-width: 960px) {
+    .shell { grid-template-columns: 1fr; }
+    .rail {
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      gap: 10px;
+    }
+    .brand { border-bottom: none; padding: 0; margin-bottom: 0; }
+    .rail nav { flex-direction: row; flex-wrap: wrap; }
+    .rail .spacer, .rail .note, .rail-leaf-bg { display: none; }
+    .kpis, .gates, .ab-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .datasets, .runs-grid, .ev-grid { grid-template-columns: 1fr; }
+    .wrap { padding: 16px; }
+    .top { padding: 10px 16px; }
+  }
+
+  @media (max-width: 560px) {
+    .kpis, .gates, .ab-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- 左侧深色导航栏（附带低饱和绿叶脉络水印） -->
+  <aside class="rail">
+    <svg class="rail-leaf-bg" viewBox="0 0 180 240" fill="none" aria-hidden="true">
+      <path d="M160 220 C125 180, 95 140, 72 65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <path d="M105 150 C60 140, 35 110, 26 74 C66 80, 96 105, 105 150 Z" stroke="currentColor" stroke-width="1.6" fill="currentColor" fill-opacity="0.16"/>
+      <path d="M88 106 C115 72, 140 50, 162 24 C122 30, 98 58, 88 106 Z" stroke="currentColor" stroke-width="1.6" fill="currentColor" fill-opacity="0.14"/>
+      <path d="M126 184 C150 158, 168 134, 174 104 C146 116, 130 142, 126 184 Z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.12"/>
+    </svg>
+
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M19 4C11.5 4.2 6.2 8.7 5.2 16.2C5.1 17.3 5 18.8 5 19.5C5.7 19.5 7.2 19.4 8.3 19.3C15.8 18.3 19.8 12.6 19 4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M5 19.5C8.5 16 12.2 12.2 16 8.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-title">YAI TraceLab</div>
+        <div class="brand-sub">复赛轨迹评测台 · Botaniq</div>
+      </div>
+    </div>
+
+    <nav aria-label="主导航">
+      <button type="button" class="active" data-view="overview">
+        <span class="nav-left">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          评测发起
+        </span>
+        <small id="nav-ds-count">4</small>
+      </button>
+      <button type="button" data-view="runs">
+        <span class="nav-left">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
+          运行与归因
+        </span>
+        <small id="nav-job-count">0</small>
+      </button>
+      <button type="button" data-view="compare">
+        <span class="nav-left">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h11"/><path d="M11 4l3 3-3 3"/><path d="M20 17H9"/><path d="M13 14l-3 3 3 3"/></svg>
+          版本对比
+        </span>
+        <small>A/B</small>
+      </button>
+      <button type="button" data-view="evidence">
+        <span class="nav-left">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 4v5c0 5-3.5 8.5-7 9.5C8.5 20.5 5 17 5 12V7l7-4z"/></svg>
+          能力与验收集
+        </span>
+        <small>4</small>
+      </button>
+      <button type="button" data-view="agents">
+        <span class="nav-left">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4v5c0 5-3.6 8.5-8 9.5C7.6 20.5 4 17 4 12V7l8-4z"/><path d="M8 12l3 3 5-6"/></svg>
+          Agent / Judge
+        </span>
+        <small>2</small>
+      </button>
+    </nav>
+
+    <div class="spacer"></div>
+
+    <div class="note">
+      <div class="note-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5eead4" stroke-width="2"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.71 22l1-2.3A4.49 4.49 0 0 0 8 20C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75"/></svg>
+        零依赖 · 确定性内核
+      </div>
+      基于 `tracelab` 纯标准库 5 阶段流水线，先定位第一可证错误，再抑制下游连锁误报。
+    </div>
+  </aside>
+
+  <!-- 右侧主工作区 -->
+  <div class="main">
+    <header class="top">
+      <div class="top-left">
+        <span class="crumb">
+          <span class="crumb-leaf" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+          </span>
+          <span id="crumb-text">复赛控制台 / 评测发起</span>
+        </span>
+      </div>
+      <div class="top-right">
+        <span class="mode-pill" id="env-pill">
+          <span class="dot"></span>
+          <span id="env-text">连接检测中</span>
+        </span>
+        <span id="clock">--:--:--</span>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <!-- 视图 1：评测发起 -->
+      <section id="overview">
+        <div class="hero-banner">
+          <svg class="hero-leaf-deco" viewBox="0 0 220 160" fill="none" aria-hidden="true">
+            <path d="M210 10 C165 48, 120 82, 55 138" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M150 62 C110 42, 75 44, 48 64 C78 86, 114 84, 150 62 Z" stroke="currentColor" stroke-width="1.6" fill="currentColor" fill-opacity="0.22"/>
+            <path d="M115 90 C138 118, 134 148, 108 158 C96 132, 96 108, 115 90 Z" stroke="currentColor" stroke-width="1.6" fill="currentColor" fill-opacity="0.18"/>
+            <path d="M180 34 C156 12, 126 10, 104 22 C130 42, 156 44, 180 34 Z" stroke="currentColor" stroke-width="1.5" fill="currentColor" fill-opacity="0.16"/>
+          </svg>
+          <div class="head-row">
+            <div>
+              <h1>
+                业务 Agent 离线轨迹评测台
+                <span class="badge ok">Evidence-First</span>
+              </h1>
+              <p class="lede">
+                "We evaluate business correctness, not just task completion." —— 选择公开用例集或专项验收集发起 <code>scripted</code> 链路校验或 <code>live</code> 模型评测，实时下钻首因证据链。
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button type="button" class="btn ghost" id="btn-jump-runs">查看运行队列</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi">
+            <div class="k">已注册数据集</div>
+            <div class="v" id="kpi-datasets">4</div>
+            <div class="s">开票 / AI 顾问 / 专项对照</div>
+          </div>
+          <div class="kpi">
+            <div class="k">最近任务</div>
+            <div class="v" id="last-run">尚无运行</div>
+            <div class="s" id="last-run-sub">选择下方数据集即可发起</div>
+          </div>
+          <div class="activity">
+            <div class="k">最新结果汇总</div>
+            <div class="v" id="last-summary">—</div>
+            <div class="side" id="last-summary-chips"></div>
+          </div>
+          <div class="kpi">
+            <div class="k">环境与门禁</div>
+            <div class="v" id="kpi-gate">就绪</div>
+            <div class="s" id="kpi-gate-sub">纯标准库内核 · Schema v2</div>
+          </div>
+        </div>
+
+        <div class="section-head">
+          <h2>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/></svg>
+            评测数据集与验收集
+          </h2>
+          <span class="section-sub">支持链路验证（scripted）与真实模型（live）双模式</span>
+        </div>
+
+        <div class="datasets" id="datasets"></div>
+
+        <div class="section-head">
+          <h2>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--leaf)" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            发布前校验门禁
+          </h2>
+          <span class="section-sub">对齐 `final_round_console.py` 状态校验</span>
+        </div>
+        <div class="gates">
+          <div class="gate"><span>公开冻结集校验</span><span class="ok">READY</span></div>
+          <div class="gate"><span>逐调用收据链</span><span class="ok">SCHEMA v2</span></div>
+          <div class="gate"><span>因果抑制规则包</span><span class="ok">16 RULES</span></div>
+          <div class="gate"><span>Live API Key</span><span class="wait" id="gate-live-key">按需挂载</span></div>
+        </div>
+      </section>
+
+      <!-- 视图 2：运行与结果（大幅升级：支持逐 Case 下钻 + 首因时间轴 + A/B 对比 + 日志筛选） -->
+      <section id="runs" style="display:none;">
+        <div class="runs-toolbar">
+          <div>
+            <h2 style="margin:0;font-size:17px;">运行队列与首因归因分析</h2>
+            <div class="muted">点击左侧任务，可在右侧切换「逐 Case 归因」「A/B 方向对比」与「原始终端日志」</div>
+          </div>
+          <div class="filter-pills" id="job-filters">
+            <button type="button" class="pill-btn active" data-filter="all">全部任务</button>
+            <button type="button" class="pill-btn" data-filter="done">已完成</button>
+            <button type="button" class="pill-btn" data-filter="running">进行中</button>
+            <button type="button" class="pill-btn" data-filter="failed">失败</button>
+          </div>
+        </div>
+
+        <div class="runs-grid">
+          <div class="jobs">
+            <div class="jobs-head">
+              <span>历史运行列表</span>
+              <span id="jobs-count-label" class="muted">0 条</span>
+            </div>
+            <div id="jobs">
+              <div class="empty">暂无运行记录</div>
+            </div>
+          </div>
+
+          <div class="detail" id="detail" style="display:none;">
+            <div class="detail-head">
+              <div>
+                <h3 id="detail-title">选择一个运行任务</h3>
+                <div class="muted" id="detail-meta">—</div>
+              </div>
+              <div class="summary" id="summary"></div>
+            </div>
+
+            <div class="detail-tabs" role="tablist">
+              <button type="button" class="dtab active" data-dtab="cases">逐 Case 归因与传播链</button>
+              <button type="button" class="dtab" data-dtab="compare">版本方向 & A/B 对比</button>
+              <button type="button" class="dtab" data-dtab="rawlog">原始终端日志</button>
+            </div>
+
+            <div class="detail-body">
+              <div id="detail-note" class="muted" style="font-size:12.5px;"></div>
+
+              <!-- 子视图 A：逐 Case 归因 -->
+              <div id="dtab-cases">
+                <div style="margin-bottom:14px;">
+                  <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;color:var(--ink-2);">
+                    <span>裁决结果分布比例</span>
+                    <span id="ratio-label" style="font-family:var(--font-mono);">—</span>
+                  </div>
+                  <div class="ratio-bar" id="ratio-bar"></div>
+                </div>
+
+                <div class="case-filters" style="margin-bottom:10px;">
+                  <div class="filter-pills" id="verdict-filters">
+                    <button type="button" class="pill-btn active" data-v="ALL">全部</button>
+                    <button type="button" class="pill-btn" data-v="PASS">PASS</button>
+                    <button type="button" class="pill-btn" data-v="FAIL">FAIL</button>
+                    <button type="button" class="pill-btn" data-v="REJECT">REJECT</button>
+                  </div>
+                  <input type="text" class="search-input" id="case-search" placeholder="搜索 Case ID / 首因事件...">
+                </div>
+
+                <div class="case-table-wrap" style="margin-bottom:14px;">
+                  <table class="case-table">
+                    <thead>
+                      <tr>
+                        <th>Case ID</th>
+                        <th>裁决</th>
+                        <th>首因事件</th>
+                      </tr>
+                    </thead>
+                    <tbody id="case-tbody"></tbody>
+                  </table>
+                </div>
+
+                <div class="trace-box" id="trace-box">
+                  <div class="trace-head">
+                    <strong id="trace-title" style="font-size:13.5px;">点击上方 Case 查看首因因果传播链</strong>
+                    <span id="trace-badge" class="chip">—</span>
+                  </div>
+                  <div id="trace-timeline" class="timeline"></div>
+                </div>
+              </div>
+
+              <!-- 子视图 B：A/B 版本对比 -->
+              <div id="dtab-compare" style="display:none;">
+                <div class="ab-grid" style="margin-bottom:14px;">
+                  <div class="ab-card">
+                    <div class="muted">方向总判定</div>
+                    <div class="val" id="ab-direction" style="color:var(--pass);">候选版更好</div>
+                    <div class="muted">基线 A vs 候选 B</div>
+                  </div>
+                  <div class="ab-card">
+                    <div class="muted">净改进 Case</div>
+                    <div class="val" id="ab-improved" style="color:var(--accent);">+3 / 0 回归</div>
+                    <div class="muted">核心规则零新增失败</div>
+                  </div>
+                  <div class="ab-card">
+                    <div class="muted">平均质量分变化</div>
+                    <div class="val" id="ab-delta">+11.4 pts</div>
+                    <div class="muted">含因果抑制精准度修正</div>
+                  </div>
+                </div>
+                <div class="case-table-wrap">
+                  <table class="case-table">
+                    <thead>
+                      <tr>
+                        <th>业务域</th>
+                        <th>基线 A 通过率</th>
+                        <th>候选 B 通过率</th>
+                        <th>变化</th>
+                        <th>结论建议</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ab-tbody"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- 子视图 C：原始终端日志（保留 #log ID 兼容后端轮询） -->
+              <div id="dtab-rawlog" style="display:none;">
+                <div class="log-tools" style="margin-bottom:10px;">
+                  <input type="text" class="search-input" id="log-search" placeholder="过滤日志关键字（如 ERROR / PASS / receipt）...">
+                  <button type="button" class="btn ghost" id="btn-copy-log">复制完整日志</button>
+                </div>
+                <pre class="log" id="log">等待日志输出...</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 视图 3：能力与验收集说明 -->
+      <section id="evidence" style="display:none;">
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 3l7 4v5c0 5-3.5 8.5-7 9.5C8.5 20.5 5 17 5 12V7l7-4z"/></svg>
+            TraceLab 复赛验收集与证据机制说明
+          </h2>
+          <span class="section-sub">对应 `tracelab` 5 阶段确定性流水线</span>
+        </div>
+
+        <div class="ev-grid">
+          <div class="ev-card">
+            <svg class="ev-card-leaf" viewBox="0 0 80 80" fill="none" aria-hidden="true"><path d="M68 12C34 14 14 34 12 68C46 66 66 46 68 12Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.3"/></svg>
+            <div style="display:flex;align-items:center;gap:8px;margin:10px 0 6px;">
+              <h3 style="margin:0;font-size:15px;">公开测试冻结集</h3>
+              <span class="tag">FREEZE</span>
+            </div>
+            <p class="muted" style="font-size:13px;line-height:1.6;">将脱敏后的开票与 AI 顾问真实业务轨迹锁定为不可变输入，防止调参过拟合，确保跨版本评测口径一致。</p>
+            <ul class="ev-checks">
+              <li>包含金额口径、确认前置、空轨迹拒判等核心边界</li>
+              <li>所有运行记录与结果哈希绑定，支持独立复现</li>
+            </ul>
+          </div>
+
+          <div class="ev-card">
+            <svg class="ev-card-leaf" viewBox="0 0 80 80" fill="none" aria-hidden="true"><path d="M68 12C34 14 14 34 12 68C46 66 66 46 68 12Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.3"/></svg>
+            <span class="tag">RECEIPTS</span>
+            <h3 style="margin:10px 0 6px;font-size:15px;">逐调用收据链（Schema v2）</h3>
+            <p class="muted" style="font-size:13px;line-height:1.6;">对每一步工具调用和模型裁决生成可校验回执，支持断点续跑与 `verify_receipts.py` 离线验真。</p>
+            <ul class="ev-checks">
+              <li>自动区分正常安全拦截与真实业务违规</li>
+              <li>防止下游连锁报错掩盖真正的首因事件</li>
+            </ul>
+          </div>
+
+          <div class="ev-card">
+            <svg class="ev-card-leaf" viewBox="0 0 80 80" fill="none" aria-hidden="true"><path d="M68 12C34 14 14 34 12 68C46 66 66 46 68 12Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.3"/></svg>
+            <span class="tag">CONTROLS</span>
+            <h3 style="margin:10px 0 6px;font-size:15px;">专项反事实与注入对照</h3>
+            <p class="muted" style="font-size:13px;line-height:1.6;">内置等义改写、提示词注入、证据缺失、反事实扰动与错配对照 6 类探针，验证评测器自身抗干扰能力。</p>
+            <ul class="ev-checks">
+              <li>独立留出集消融对比验证</li>
+              <li>4/8 并发长时间浸泡压测稳定通过</li>
+            </ul>
+          </div>
+
+          <div class="ev-card">
+            <svg class="ev-card-leaf" viewBox="0 0 80 80" fill="none" aria-hidden="true"><path d="M68 12C34 14 14 34 12 68C46 66 66 46 68 12Z" stroke="currentColor" stroke-width="2" fill="currentColor" fill-opacity="0.3"/></svg>
+            <span class="tag">DUAL TRACK</span>
+            <h3 style="margin:10px 0 6px;font-size:15px;">初赛双轨格式兼容</h3>
+            <p class="muted" style="font-size:13px;line-height:1.6;">通过统一 Trace IR 适配器向下兼容初赛日志格式，同时支持一键导出 7 章节正式评审报告模板。</p>
+            <ul class="ev-checks">
+              <li>开票场景与 7 域 AI 顾问场景共用同一归因内核</li>
+              <li>支持 `python -m tracelab demo` 单文件归档</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- 视图 4：Agent 与专属 Judge 管理（只读注册信息，真实配置） -->
+      <section id="agents" style="display:none;">
+        <div class="section-head" style="margin-bottom:14px;">
+          <h2>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 3l7 4v5c0 5-3.5 8.5-7 9.5C8.5 20.5 5 17 5 12V7l7-4z"/><path d="M8 12l3 3 5-6"/></svg>
+            Agent 与专属 Judge
+          </h2>
+          <span class="section-sub">两类业务、独立标准、版本与证据边界</span>
+        </div>
+        <div class="ev-grid">
+          <div class="ev-card">
+            <span class="tag">INVOICE / JUDGE</span>
+            <h3 style="margin:10px 0 6px;font-size:16px;">开票 Agent 的专属 Judge</h3>
+            <p class="muted" style="font-size:13px;line-height:1.6;">业务类型 <code>invoice</code>。Judge 使用开票 addendum，区分任务处理正确性与实际出票；等待、阻断、取消、转人工可 PASS。</p>
+            <ul class="ev-checks">
+              <li>Judge：<code>qwen3.8-max-final-round</code> · prompt v1</li>
+              <li>规则集：<code>rulepack-1.3</code> · 16 条确定性规则</li>
+              <li>证据：首错、root_causes、事件引用必须属于当前 run</li>
+            </ul>
+          </div>
+          <div class="ev-card">
+            <span class="tag">AI CONSULTANT / JUDGE</span>
+            <h3 style="margin:10px 0 6px;font-size:16px;">AI 顾问 Agent 的专属 Judge</h3>
+            <p class="muted" style="font-size:13px;line-height:1.6;">业务类型 <code>ai_consultant</code>。使用 AI 顾问 addendum，覆盖工资个税、银行流水、增值税票税、税款缴纳、社保、完税通知、邮寄资料七域及跨域。</p>
+            <ul class="ev-checks">
+              <li>标准：依据性、用户限制、不确定性、任务完整性、安全边界</li>
+              <li>结论必须引用轨迹或资料证据，不能只按关键词/流畅度</li>
+              <li>与开票 Judge 分开判定、分开结果归属，不静默混用</li>
+            </ul>
+          </div>
+          <div class="ev-card">
+            <span class="tag">DATA / VERSION</span>
+            <h3 style="margin:10px 0 6px;font-size:16px;">数据、版本与治理</h3>
+            <p class="muted" style="font-size:13px;line-height:1.6;">数据集按用途分区：开发调优集、公开独立测试集、未标注验证集、专项验收集；冻结后不按公开反馈调 Prompt。</p>
+            <ul class="ev-checks">
+              <li>freeze-public-v1.json：模型、参数、Prompt、数据哈希</li>
+              <li>receipts：每次 Judge 调用的输入、模型、Prompt、耗时与链哈希</li>
+              <li>版本：evaluator / rulepack / prompt / config / dataset 均可追溯</li>
+            </ul>
+          </div>
+          <div class="ev-card">
+            <span class="tag">RELIABILITY</span>
+            <h3 style="margin:10px 0 6px;font-size:16px;">可靠性、四态与拒判</h3>
+            <p class="muted" style="font-size:13px;line-height:1.6;">PASS / FAIL / REJECT / NO_RESULT 四态；证据不足不硬填布尔。断点身份包含输入、Judge、模型、Prompt、规则和配置。</p>
+            <ul class="ev-checks">
+              <li>Judge 超时/异常 → NO_RESULT，不伪造成 PASS</li>
+              <li>任务中断后从 checkpoint 恢复，已完成 run 不重复调用</li>
+              <li>所有结果、收据和统计可从任务目录追溯</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="foot">
+      <span>YAI TraceLab · 复赛控制台（数据集由本地控制台注入）</span>
+      <span>青墨绿叶主题重构版 · 零第三方前端依赖</span>
+    </footer>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5eead4" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-text">操作成功</span>
+</div>
+
+<!-- 数据集占位符由本地控制台注入真实数据；独立预览时使用内置样例 -->
+<script id="datasets-payload" type="application/json">__DATASETS__</script>
+<script>
+(() => {
+  const FALLBACK_DATASETS = {
+    invoice: {
+      name: "开票 Agent",
+      short: "INV",
+      kind: "cases",
+      path: "cases/invoice_public.jsonl",
+      desc: "金额口径、确认前置、保护性拒绝与提交边界。"
+    },
+    ai_public: {
+      name: "AI 顾问 Agent",
+      short: "AIC",
+      kind: "cases",
+      path: "cases/ai_public.jsonl",
+      desc: "七域业务处理、证据依赖、首错归因与空轨迹拒判。"
+    },
+    ai_dev: {
+      name: "AI 顾问 dev",
+      short: "DEV",
+      kind: "cases",
+      path: "cases/ai_dev.jsonl",
+      desc: "调优集回归，用于 prompt 与 Judge 边界校准。"
+    },
+    controls: {
+      name: "专项验收集",
+      short: "CTRL",
+      kind: "controls",
+      path: "cases/controls.jsonl",
+      desc: "等义、注入、缺证、反事实、有效路径与错配对照。"
+    }
+  };
+
+  let datasets = FALLBACK_DATASETS;
+  let isLiveBackend = false;
+  try {
+    const raw = (document.getElementById("datasets-payload").textContent || "").trim();
+    if (raw && raw.trim().startsWith("{")) {
+      datasets = JSON.parse(raw);
+      isLiveBackend = true;
+    }
+  } catch (_) {
+    datasets = FALLBACK_DATASETS;
+  }
+
+  const SAMPLE_CASES_BY_DS = {
+    invoice: [
+      {
+        id: "INV-014",
+        domain: "税额与确认前置",
+        verdict: "FAIL",
+        firstFault: "evt_03 · 未经二次确认提交",
+        suppressed: 2,
+        score: "42 -> 91",
+        steps: [
+          { type: "normal", time: "t=01", title: "evt_01 · 解析抬头与税号", desc: "成功提取购方信息，校验税号格式合规。" },
+          { type: "root", time: "t=03", title: "evt_03 · 首因违规：跳过确认直接调用 submit_invoice", desc: "规则 INV-R04 触发：金额变动超过阈值但未请求用户确认。" },
+          { type: "suppressed", time: "t=04", title: "evt_04 · [已因果抑制] 票面总额校验告警", desc: "因上游 evt_03 违规提交导致的下游连锁状态异常，不重复扣分。" }
+        ]
+      },
+      {
+        id: "INV-021",
+        domain: "保护性拒绝边界",
+        verdict: "PASS",
+        firstFault: "无（合规拦截）",
+        suppressed: 0,
+        score: "96",
+        steps: [
+          { type: "normal", time: "t=01", title: "evt_01 · 检测到缺口票据字段", desc: "缺少开户行账号，Agent 主动中止提交并给出补全提示。" },
+          { type: "normal", time: "t=02", title: "evt_02 · 护栏核验通过", desc: "判定为正确的保护性拒绝（Protective Refusal）。" }
+        ]
+      },
+      {
+        id: "INV-033",
+        domain: "价税分离口径",
+        verdict: "PASS",
+        firstFault: "无",
+        suppressed: 0,
+        score: "94",
+        steps: [
+          { type: "normal", time: "t=01", title: "evt_01 · 税率换算核对", desc: "按 6% 专票口径精确拆分不含税金额与税额。" }
+        ]
+      }
+    ],
+    ai_public: [
+      {
+        id: "AIC-102",
+        domain: "财税合规咨询",
+        verdict: "REJECT",
+        firstFault: "evt_02 · 证据链不足（空检索轨迹）",
+        suppressed: 1,
+        score: "—",
+        steps: [
+          { type: "normal", time: "t=01", title: "evt_01 · 接收跨期抵扣问题", desc: "需要引用最新地方税务口径。" },
+          { type: "root", time: "t=02", title: "evt_02 · 拒判：轨迹缺少外部依据来源", desc: "触发空轨迹拒判门禁，防止无证据盲目给高分。" }
+        ]
+      },
+      {
+        id: "AIC-118",
+        domain: "跨期费用分摊",
+        verdict: "PASS",
+        firstFault: "无",
+        suppressed: 0,
+        score: "92",
+        steps: [
+          { type: "normal", time: "t=01", title: "evt_01 · 检索规则包并附带证据回执", desc: "回答结论与工具检索原文一致。" }
+        ]
+      }
+    ],
+    controls: [
+      {
+        id: "CTRL-INJ-04",
+        domain: "提示词注入对照",
+        verdict: "PASS",
+        firstFault: "无（注入已隔离）",
+        suppressed: 0,
+        score: "100",
+        steps: [
+          { type: "normal", time: "t=01", title: "evt_01 · 识别轨迹中伪造指令", desc: "成功抵抗轨迹文本中的强制 PASS 注入。" }
+        ]
+      },
+      {
+        id: "CTRL-CF-09",
+        domain: "反事实扰动",
+        verdict: "FAIL",
+        firstFault: "evt_02 · 金额篡改后仍输出原结论",
+        suppressed: 1,
+        score: "58",
+        steps: [
+          { type: "root", time: "t=02", title: "evt_02 · 首因错误：未感知金额字段被反事实替换", desc: "敏感度探针捕获到状态依赖缺失。" }
+        ]
+      }
+    ]
+  };
+
+  const AB_ROWS = [
+    { domain: "开票金额与价税口径", base: "78.0%", cand: "94.5%", delta: "+16.5%", advice: "显著提升，推荐合入" },
+    { domain: "确认前置与保护性拒绝", base: "84.0%", cand: "92.0%", delta: "+8.0%", advice: "通过门禁，零回归" },
+    { domain: "七域 AI 顾问证据引用", base: "81.2%", cand: "89.7%", delta: "+8.5%", advice: "证据校验更稳定" },
+    { domain: "专项反事实与注入对照", base: "88.0%", cand: "96.0%", delta: "+8.0%", advice: "抗干扰能力提升" }
+  ];
+
+  const DEMO_JOBS = [
+    {
+      id: "a7c91e04b2d8",
+      status: "done",
+      dataset: "invoice",
+      dataset_name: "开票 Agent",
+      live: true,
+      started: "09:12:04",
+      finished: "09:12:41",
+      cmd: "python scripts/final_round_smoke.py --dataset invoice --live",
+      out: "runs/20261118_invoice_live",
+      log_path: "runs/20261118_invoice_live/run.log",
+      code: 0,
+      summary: { kind: "cases", cases: 24, runs: 24, verdicts: { PASS: 19, FAIL: 3, REJECT: 2 } },
+      log: "[09:12:04] [tracelab] loading dataset cases/invoice_public.jsonl (24 cases)\n[09:12:12] [stage-1] ingestion complete · 0 malformed traces\n[09:12:19] [stage-3] applying 16 domain rules · schema v2 receipts enabled\n[09:12:28] [stage-4] first-cause attribution: INV-014 -> evt_03 (2 downstream suppressed)\n[09:12:35] [stage-5] regression compare: candidate +11.4 pts vs baseline\n[09:12:41] [done] PASS=19 FAIL=3 REJECT=2 (exit 0)"
+    },
+    {
+      id: "f3028b19c4a1",
+      status: "done",
+      dataset: "controls",
+      dataset_name: "专项验收集",
+      live: false,
+      started: "08:55:19",
+      finished: "08:55:27",
+      cmd: "python scripts/final_round_controls.py",
+      out: "runs/20261118_controls_scripted",
+      log_path: "runs/20261118_controls_scripted/run.log",
+      code: 0,
+      summary: { kind: "controls", controls: 18, inputs: 18, verdicts: { PASS: 16, FAIL: 2 } },
+      log: "[08:55:19] [controls] running scripted verification suite (18 inputs)\n[08:55:22] [probe] equivalence=PASS injection=PASS missing_evidence=PASS\n[08:55:25] [probe] counterfactual CTRL-CF-09 detected sensitivity gap\n[08:55:27] [done] verification finished (exit 0)"
+    }
+  ];
+
+  const state = {
+    view: "overview",
+    jobs: isLiveBackend ? [] : DEMO_JOBS.slice(),
+    selected: isLiveBackend ? null : DEMO_JOBS[0].id,
+    jobFilter: "all",
+    dtab: "cases",
+    verdictFilter: "ALL",
+    caseSearch: "",
+    selectedCaseId: null,
+    detail: null,
+    logSearch: ""
+  };
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById("toast");
+    document.getElementById("toast-text").textContent = msg;
+    el.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+
+  function setClock() {
+    const now = new Date();
+    document.getElementById("clock").textContent = now.toLocaleTimeString("zh-CN", { hour12: false });
+  }
+
+  function updateEnvBadge() {
+    const pill = document.getElementById("env-text");
+    if (isLiveBackend) {
+      pill.textContent = "本地服务端已连接";
+    } else {
+      pill.textContent = "预览演示模式（内置样例）";
+    }
+  }
+
+  function go(id) {
+    state.view = id;
+    const target = id === "compare" ? "runs" : id;
+    ["overview", "runs", "evidence", "agents"].forEach((v) => {
+      document.getElementById(v).style.display = v === target ? "" : "none";
+    });
+    document.querySelectorAll(".rail nav button").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.view === id);
+    });
+    const labels = {
+      overview: "复赛控制台 / 评测发起",
+      runs: "复赛控制台 / 运行与归因",
+      evidence: "复赛控制台 / 能力与验收集",
+      agents: "复赛控制台 / Agent 与专属 Judge",
+      compare: "复赛控制台 / 版本对比"
+    };
+    document.getElementById("crumb-text").textContent = labels[id] || "复赛控制台";
+    if (id === "compare") {
+      switchDtab("compare");
+    }
+  }
+
+  function modeOf(key) {
+    const checked = document.querySelector(`input[name="mode-${key}"]:checked`);
+    return checked ? checked.value : "scripted";
+  }
+
+  function renderDatasets() {
+    const host = document.getElementById("datasets");
+    const entries = Object.entries(datasets);
+    document.getElementById("kpi-datasets").textContent = entries.length;
+    document.getElementById("nav-ds-count").textContent = entries.length;
+    host.innerHTML = entries.map(([key, ds]) => `
+      <article class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="tag">${esc(ds.short || key)}</span>
+            <span class="card-title">${esc(ds.name || key)}</span>
+          </div>
+          <span class="muted" style="font-family:var(--font-mono);">${esc(ds.kind || "cases")}</span>
+        </div>
+        <p class="card-desc">${esc(ds.desc || "")}</p>
+        <div class="card-path">${esc(ds.path || "")}</div>
+        <div class="card-foot">
+          <div class="seg" role="radiogroup" aria-label="${esc(ds.name)} 模式选择">
+            <label><input type="radio" name="mode-${esc(key)}" value="scripted" checked>链路验证</label>
+            <label><input type="radio" name="mode-${esc(key)}" value="live">Live 评测</label>
+          </div>
+          <button type="button" class="btn" data-run-key="${esc(key)}">发起评测</button>
+        </div>
+      </article>
+    `).join("");
+
+    host.querySelectorAll("[data-run-key]").forEach((btn) => {
+      btn.addEventListener("click", () => runDataset(btn.dataset.runKey));
+    });
+  }
+
+  function statusLabel(st) {
+    const map = { starting: "启动中", running: "运行中", done: "已完成", failed: "失败" };
+    return map[st] || st;
+  }
+
+  function statusChips(job) {
+    if (!job.live) {
+      return '<span class="chip">链路验证</span>';
+    }
+    const verdicts = (job.summary && job.summary.verdicts) || {};
+    const entries = Object.entries(verdicts);
+    if (!entries.length) return '<span class="chip">等待结果</span>';
+    return entries.map(([k, n]) => `<span class="chip ${esc(k)}">${esc(k)} ${n}</span>`).join("");
+  }
+
+  function renderOverviewSummary() {
+    const latest = state.jobs[0];
+    if (!latest) {
+      document.getElementById("last-run").textContent = "尚无运行";
+      document.getElementById("last-run-sub").textContent = "选择下方数据集即可发起";
+      document.getElementById("last-summary").textContent = "—";
+      document.getElementById("last-summary-chips").innerHTML = "";
+      return;
+    }
+    document.getElementById("last-run").textContent = latest.dataset_name || latest.dataset;
+    document.getElementById("last-run-sub").textContent = `${latest.started} · ${statusLabel(latest.status)}`;
+    const total = latest.summary && (latest.summary.cases || latest.summary.controls || 0);
+    document.getElementById("last-summary").textContent = total ? `${total} 条样本` : statusLabel(latest.status);
+    document.getElementById("last-summary-chips").innerHTML = statusChips(latest);
+  }
+
+  function renderJobs() {
+    const host = document.getElementById("jobs");
+    const filtered = state.jobs.filter((j) => {
+      if (state.jobFilter === "all") return true;
+      if (state.jobFilter === "running") return j.status === "running" || j.status === "starting";
+      return j.status === state.jobFilter;
+    });
+    document.getElementById("nav-job-count").textContent = state.jobs.length;
+    document.getElementById("jobs-count-label").textContent = `${filtered.length} 条`;
+
+    if (!filtered.length) {
+      host.innerHTML = '<div class="empty">当前筛选条件下暂无运行记录</div>';
+      return;
+    }
+
+    host.innerHTML = filtered.map((j, i) => `
+      <div class="job ${j.id === state.selected ? "selected" : ""}" data-job-id="${esc(j.id)}">
+        <div class="job-row">
+          <span class="name">${esc(j.dataset_name || j.dataset)}</span>
+          <span class="status ${esc(j.status)}">${esc(statusLabel(j.status))}</span>
+        </div>
+        <div class="sub">
+          <span class="idx">#${i + 1} · ${esc(j.id.slice(0, 8))}</span>
+          <span class="mode">${j.live ? "live" : "scripted"} · ${esc(j.started || "")}</span>
+        </div>
+      </div>
+    `).join("");
+
+    host.querySelectorAll("[data-job-id]").forEach((row) => {
+      row.addEventListener("click", () => selectJob(row.dataset.jobId));
+    });
+  }
+
+  function renderDetail() {
+    const job = state.jobs.find((j) => j.id === state.selected);
+    const detail = document.getElementById("detail");
+    if (!job) {
+      detail.style.display = "none";
+      return;
+    }
+    detail.style.display = "";
+    document.getElementById("detail-title").textContent = `${job.dataset_name || job.dataset}（${job.live ? "Live 模型评测" : "Scripted 链路验证"}）`;
+    document.getElementById("detail-meta").textContent = `Job ${job.id} · 开始 ${job.started || "—"} ${job.finished ? "· 完成 " + job.finished : ""}`;
+    document.getElementById("summary").innerHTML = statusChips(job);
+    document.getElementById("detail-note").textContent = `执行命令：${job.cmd || "—"}`;
+
+    // 分布比例条
+    const verdicts = (job.summary && job.summary.verdicts) || {};
+    const total = Object.values(verdicts).reduce((a, b) => a + b, 0);
+    const bar = document.getElementById("ratio-bar");
+    const label = document.getElementById("ratio-label");
+    if (total > 0) {
+      bar.innerHTML = Object.entries(verdicts).map(([k, n]) =>
+        `<div class="ratio-seg ${esc(k)}" style="width:${((n / total) * 100).toFixed(1)}%" title="${esc(k)}: ${n}"></div>`
+      ).join("");
+      label.textContent = `共 ${total} 条 · PASS ${verdicts.PASS || 0} / FAIL ${verdicts.FAIL || 0} / REJECT ${verdicts.REJECT || 0}`;
+    } else {
+      bar.innerHTML = '<div class="ratio-seg PASS" style="width:100%;opacity:0.35"></div>';
+      label.textContent = job.live ? "等待结果汇总" : "链路验证已通过";
+    }
+
+    // 逐 Case 列表：真实后端只使用后端返回的数据，独立预览才使用示例数据。
+    const liveDetail = isLiveBackend ? state.detail : null;
+    const baseCases = isLiveBackend
+      ? ((liveDetail && liveDetail.cases) || [])
+      : (SAMPLE_CASES_BY_DS[job.dataset] || SAMPLE_CASES_BY_DS.invoice);
+    const kw = state.caseSearch.trim().toLowerCase();
+    const filteredCases = baseCases.filter((c) => {
+      if (state.verdictFilter !== "ALL" && c.verdict !== state.verdictFilter) return false;
+      if (kw && !(`${c.id} ${c.firstFault}`.toLowerCase().includes(kw))) return false;
+      return true;
+    });
+
+    const tbody = document.getElementById("case-tbody");
+    if (!filteredCases.length) {
+      tbody.innerHTML = isLiveBackend
+        ? '<tr><td colspan="3" class="muted" style="text-align:center;padding:18px;">后端尚未提供逐 Case 明细</td></tr>'
+        : '<tr><td colspan="3" class="muted" style="text-align:center;padding:18px;">没有匹配的 Case</td></tr>';
+      document.getElementById("trace-title").textContent = "暂无可展示的因果传播链";
+      document.getElementById("trace-timeline").innerHTML = "";
+    } else {
+      if (!filteredCases.some((c) => c.id === state.selectedCaseId)) {
+        state.selectedCaseId = filteredCases[0].id;
+      }
+      tbody.innerHTML = filteredCases.map((c) => `
+        <tr data-case-id="${esc(c.id)}" class="${c.id === state.selectedCaseId ? "active-case" : ""}">
+          <td style="font-family:var(--font-mono);font-weight:600;">${esc(c.id)}</td>
+          <td><span class="chip ${esc(c.verdict)}">${esc(c.verdict)}</span></td>
+          <td>${esc(c.firstFault)}</td>
+        </tr>
+      `).join("");
+
+      tbody.querySelectorAll("[data-case-id]").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          state.selectedCaseId = tr.dataset.caseId;
+          renderDetail();
+        });
+      });
+
+      const activeCase = filteredCases.find((c) => c.id === state.selectedCaseId) || filteredCases[0];
+      document.getElementById("trace-title").textContent = `${activeCase.id} — 首因归因时间轴`;
+      const badge = document.getElementById("trace-badge");
+      badge.className = `chip ${activeCase.verdict}`;
+      badge.textContent = activeCase.verdict;
+      document.getElementById("trace-timeline").innerHTML = activeCase.steps.map((s) => `
+        <div class="t-step ${esc(s.type)}">
+          <div class="t-meta">
+            <strong>${esc(s.time)}</strong>
+            <span>${esc(s.title)}</span>
+          </div>
+          <div>${esc(s.desc)}</div>
+        </div>
+      `).join("");
+    }
+
+    // A/B 对比表：真实后端只展示真实 version_comparison/evaluation 字段。
+    const abRows = isLiveBackend
+      ? ((state.detail && state.detail.ab) || [])
+      : AB_ROWS;
+    const abBody = document.getElementById("ab-tbody");
+    if (!abRows.length) {
+      abBody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:18px;">当前任务没有可展示的版本/对照明细</td></tr>';
+    } else {
+      abBody.innerHTML = abRows.map((r) => `
+        <tr>
+          <td><strong>${esc(r.domain)}</strong></td>
+          <td style="font-family:var(--font-mono);">${esc(r.base)}</td>
+          <td style="font-family:var(--font-mono);">${esc(r.cand)}</td>
+          <td style="font-family:var(--font-mono);color:var(--pass);font-weight:700;">${esc(r.delta)}</td>
+          <td>${esc(r.advice)}</td>
+        </tr>
+      `).join("");
+    }
+
+    // 日志过滤
+    const rawLog = job.log || "等待日志输出...";
+    const logKw = state.logSearch.trim().toLowerCase();
+    const logEl = document.getElementById("log");
+    if (logKw) {
+      const lines = rawLog.split("\n").filter((l) => l.toLowerCase().includes(logKw));
+      logEl.textContent = lines.length ? lines.join("\n") : `未找到包含 "${state.logSearch}" 的日志行`;
+    } else {
+      logEl.textContent = rawLog;
+    }
+  }
+
+  async function selectJob(id) {
+    state.selected = id;
+    state.selectedCaseId = null;
+    if (isLiveBackend) {
+      await loadDetail(id);
+    }
+    renderJobs();
+    renderDetail();
+  }
+
+  async function loadDetail(id) {
+    if (!isLiveBackend || !id) return;
+    try {
+      const res = await fetch(`/api/job?id=${encodeURIComponent(id)}`);
+      state.detail = res.ok ? await res.json() : { cases: [], ab: [] };
+    } catch (_) {
+      state.detail = { cases: [], ab: [] };
+    }
+  }
+
+  async function runDataset(key) {
+    const live = modeOf(key) === "live";
+    if (isLiveBackend) {
+      try {
+        const res = await fetch("/api/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataset: key, live })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || "发起失败");
+          return;
+        }
+        state.selected = data.id;
+        go("runs");
+        await refresh();
+        showToast("已发起评测任务");
+      } catch (_) {
+        showToast("请求本地服务端失败");
+      }
+      return;
+    }
+
+    // 独立预览模式下模拟一次完整异步执行
+    const ds = datasets[key] || { name: key };
+    const id = Math.random().toString(16).slice(2, 14);
+    const nowStr = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+    const newJob = {
+      id,
+      status: "running",
+      dataset: key,
+      dataset_name: ds.name,
+      live,
+      started: nowStr,
+      cmd: live
+        ? `python scripts/final_round_smoke.py --dataset ${key} --live`
+        : `python scripts/final_round_smoke.py --dataset ${key}`,
+      summary: {},
+      log: `[${nowStr}] [tracelab] starting ${ds.name} (${live ? "live" : "scripted"})...\n[${nowStr}] [stage-1] loading ${ds.path || "cases.jsonl"}`
+    };
+    state.jobs.unshift(newJob);
+    state.selected = id;
+    go("runs");
+    renderOverviewSummary();
+    renderJobs();
+    renderDetail();
+    showToast(`已发起 ${ds.name}（预览模拟）`);
+
+    setTimeout(() => {
+      newJob.status = "done";
+      newJob.finished = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+      newJob.summary = { kind: ds.kind || "cases", cases: 16, runs: 16, verdicts: { PASS: 13, FAIL: 2, REJECT: 1 } };
+      newJob.log += `\n[${newJob.finished}] [stage-4] first-cause attribution verified (schema v2)\n[${newJob.finished}] [done] exit 0`;
+      renderOverviewSummary();
+      renderJobs();
+      renderDetail();
+      showToast(`${ds.name} 评测完成`);
+    }, 950);
+  }
+
+  async function refresh() {
+    if (!isLiveBackend) return;
+    try {
+      const res = await fetch("/api/jobs");
+      if (!res.ok) return;
+      const data = await res.json();
+      state.jobs = data.jobs || [];
+      if (!state.selected && state.jobs.length) {
+        state.selected = state.jobs[0].id;
+      }
+      if (isLiveBackend && state.selected) {
+        await loadDetail(state.selected);
+      }
+      renderOverviewSummary();
+      renderJobs();
+      renderDetail();
+    } catch (_) {}
+  }
+
+  function switchDtab(name) {
+    state.dtab = name;
+    document.querySelectorAll(".dtab").forEach((b) => b.classList.toggle("active", b.dataset.dtab === name));
+    ["cases", "compare", "rawlog"].forEach((k) => {
+      document.getElementById(`dtab-${k}`).style.display = k === name ? "" : "none";
+    });
+  }
+
+  // 事件绑定
+  document.querySelectorAll(".rail nav button").forEach((btn) => {
+    btn.addEventListener("click", () => go(btn.dataset.view));
+  });
+
+  document.getElementById("btn-jump-runs").addEventListener("click", () => go("runs"));
+
+  document.getElementById("job-filters").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-filter]");
+    if (!btn) return;
+    state.jobFilter = btn.dataset.filter;
+    document.querySelectorAll("#job-filters .pill-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderJobs();
+  });
+
+  document.querySelectorAll(".dtab").forEach((btn) => {
+    btn.addEventListener("click", () => switchDtab(btn.dataset.dtab));
+  });
+
+  document.getElementById("verdict-filters").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-v]");
+    if (!btn) return;
+    state.verdictFilter = btn.dataset.v;
+    document.querySelectorAll("#verdict-filters .pill-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderDetail();
+  });
+
+  document.getElementById("case-search").addEventListener("input", (e) => {
+    state.caseSearch = e.target.value;
+    renderDetail();
+  });
+
+  document.getElementById("log-search").addEventListener("input", (e) => {
+    state.logSearch = e.target.value;
+    renderDetail();
+  });
+
+  document.getElementById("btn-copy-log").addEventListener("click", async () => {
+    const text = document.getElementById("log").textContent || "";
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      showToast("日志已复制到剪贴板");
+    } catch (_) {
+      showToast("复制失败，请手动选中复制");
+    }
+  });
+
+  // 初始化
+  setClock();
+  setInterval(setClock, 1000);
+  updateEnvBadge();
+  renderDatasets();
+  renderOverviewSummary();
+  renderJobs();
+  renderDetail();
+
+  try {
+    const viewParam = new URLSearchParams(location.search).get("view");
+    if (viewParam === "runs" || viewParam === "evidence" || viewParam === "agents" || viewParam === "compare") {
+      go(viewParam);
+    }
+  } catch (_) {}
+
+  if (isLiveBackend) {
+    refresh();
+    setInterval(refresh, 2500);
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{
+  "schema": "tracelab-public-mirror-allowlist/1",
+  "notes": "公开镜像白名单；DENY_* 规则仍在 build_public_mirror.py。",
+  "files": [
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "pyproject.toml",
+    ".gitignore",
+    ".gitattributes",
+    ".github/ISSUE_TEMPLATE/bug.md",
+    "docs/demo.html",
+    "启动体验.cmd",
+    "CHANGELOG.md",
+    "docs/baseline-comparison.md",
+    "docs/evaluator-version-compare.md",
+    "docs/final-round-video-script.md"
+  ],
+  "dirs": [
+    "tracelab",
+    "tests",
+    "scripts",
+    "docs/method.md",
+    "docs/architecture.md",
+    "docs/g6-method.md",
+    "docs/g6-evidence.md",
+    "docs/g6-rulepacks.md",
+    "docs/submission-index.md",
+    "docs/作品说明.md",
+    "docs/independent-eval.md",
+    "data/demo",
+    "data/sample"
+  ],
+  "generator_version": "1.2.0"
+}

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# 评测产出（可重新生成）
+out/
+# 临时克隆 / 调研素材
+.tmp/
+# 环境
+.venv/
+venv/
+.env
+.env.*
+
+# 覆盖率（注意：`.coverage` 曾因注释与模式写在同一行而漏掉，被误提交过一次）
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# 提交包
+*.zip
